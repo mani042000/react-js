@@ -1,4 +1,4 @@
-import { Input, Button, Tooltip, Card as AntCard, Row, Col, Card } from 'antd';
+import { Input, Button, Tooltip, Row, Col } from 'antd';
 import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import Slider from 'react-slick';
@@ -43,8 +43,11 @@ const WeatherCard = () => {
                 lon: data.coord.lon
             };
 
+            const lat = weatherInfo.lat;
+            const lon = weatherInfo.lon
+
             setWeatherData(weatherInfo);
-            getTime(weatherInfo.lat, weatherInfo.lon);
+            getTime(lat, lon);
             getCityImages(cityName);
         } catch (error) {
             Swal.fire({
