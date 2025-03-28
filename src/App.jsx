@@ -1,13 +1,12 @@
 import React from 'react'
 import { Route, Routes } from 'react-router-dom'
-import Card from './Components/Card'
-import './Assets/App.css'
+import WeatherCard from './Components/Card'
 
 const App = () => {
   return (
     <div>
         <Routes>
-            <Route path='/' element={<Card/>}/>
+            <Route path='/' element={<WeatherCard/>}/>
         </Routes>
     </div>
   )
