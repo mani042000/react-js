@@ -1,5 +1,5 @@
 import { Input, Button, Tooltip, Row, Col } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Swal from 'sweetalert2';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
@@ -13,6 +13,7 @@ const WeatherCard = () => {
     const [input, setInput] = useState('');
     const [city, setCity] = useState('');
     const [time, setTime] = useState('');
+    const timeIntervalRef = useRef(null);
 
     const getWeather = async (cityName) => {
         try {
@@ -43,11 +44,8 @@ const WeatherCard = () => {
                 lon: data.coord.lon
             };
 
-            const lat = weatherInfo.lat;
-            const lon = weatherInfo.lon
-
             setWeatherData(weatherInfo);
-            getTime(lat, lon);
+            getTime(weatherInfo.lat, weatherInfo.lon);
             getCityImages(cityName);
         } catch (error) {
             Swal.fire({
@@ -60,13 +58,12 @@ const WeatherCard = () => {
         }
     };
 
-    const getTime = async (lat, lon) => {
+    const getTime = async (latitude, longitude) => {
         try {
             const apiKey = 'GCLYMOG371FG';
-            const url = `http://api.timezonedb.com/v2.1/get-time-zone?key=${apiKey}&format=json&by=position&lat=${lat}&lng=${lon}`;
+            const url = `https://api.timezonedb.com/v2.1/get-time-zone?key=${apiKey}&format=json&by=position&lat=${latitude}&lng=${longitude}`;
             const response = await fetch(url);
             const data = await response.json();
-
             if (data.status === "OK") {
                 updateTime(data.formatted);
             }
@@ -76,13 +73,25 @@ const WeatherCard = () => {
     };
 
     const updateTime = (initialTime) => {
+        if (timeIntervalRef.current) {
+            clearInterval(timeIntervalRef.current);
+        }
+
         let currentTime = new Date(initialTime);
 
-        setInterval(() => {
+        timeIntervalRef.current = setInterval(() => {
             currentTime.setSeconds(currentTime.getSeconds() + 1);
             setTime(currentTime.toLocaleTimeString());
         }, 1000);
     };
+
+    useEffect(() => {
+        return () => {
+            if (timeIntervalRef.current) {
+                clearInterval(timeIntervalRef.current);
+            }
+        };
+    }, []);
 
     const getCityImages = async (cityName) => {
         try {
@@ -92,11 +101,7 @@ const WeatherCard = () => {
             );
             const data = await response.json();
 
-            if (data.results.length > 0) {
-                setCityImages(data.results.map(img => img.urls.regular));
-            } else {
-                setCityImages([]);
-            }
+            setCityImages(data.results.length > 0 ? data.results.map(img => img.urls.regular) : []);
         } catch (error) {
             console.error('Error fetching images:', error);
             setCityImages([]);
@@ -139,7 +144,6 @@ const WeatherCard = () => {
 
     return (
         <div className="weather-container">
-            {/* Background Carousel */}
             {cityImages.length > 0 && (
                 <Slider {...sliderSettings} className="background-slider">
                     {cityImages.map((image, index) => (
@@ -150,9 +154,7 @@ const WeatherCard = () => {
                 </Slider>
             )}
 
-            {/* Cards Container */}
             <div className="cards-container">
-                {/* Weather Card */}
                 {weatherData && (
                     <div className="weather-card">
                         <img src={weatherData.icon} alt="weather_icon" className="weather-icon" />
@@ -161,14 +163,19 @@ const WeatherCard = () => {
                         <h4>{weatherData.name}</h4>
                         <h4>🕒 {time}</h4>
 
-                        <Row gutter={16} justify="center">
-                            <Col><img src={humidity_icon} alt="humidity" className="info-icon" /> {weatherData.humidity}%</Col>
-                            <Col><img src={wind_icon} alt="wind" className="info-icon" /> {weatherData.windSpeed} km/h</Col>
+                        <Row gutter={[16, 16]} justify="center" style={{ marginTop: '10px' }}>
+                            <Col span={12} style={{ textAlign: 'center' }}>
+                                <img src={humidity_icon} alt="humidity" className="info-icon" />
+                                <p>{weatherData.humidity}% Humidity</p>
+                            </Col>
+                            <Col span={12} style={{ textAlign: 'center' }}>
+                                <img src={wind_icon} alt="wind" className="info-icon" />
+                                <p>{weatherData.windSpeed} km/h Wind</p>
+                            </Col>
                         </Row>
                     </div>
                 )}
 
-                {/* Search Card */}
                 <div className="search-card">
                     <h3>Search Weather</h3>
                     <Input.Group compact>
