@@ -1,14 +1,18 @@
-import { Input, Button, Tooltip, Card as AntCard, Row, Col } from 'antd';
+import { Input, Button, Tooltip, Card as AntCard, Row, Col, Card } from 'antd';
 import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
+import Slider from 'react-slick';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 import humidity_icon from '../Assets/humidity.png';
 import wind_icon from '../Assets/wind.png';
 
 const WeatherCard = () => {
     const [weatherData, setWeatherData] = useState(null);
-    const [cityImage, setCityImage] = useState('');
+    const [cityImages, setCityImages] = useState([]);
     const [input, setInput] = useState('');
     const [city, setCity] = useState('');
+    const [time, setTime] = useState('');
 
     const getWeather = async (cityName) => {
         try {
@@ -28,23 +32,20 @@ const WeatherCard = () => {
                 return;
             }
 
-            setWeatherData({
+            const weatherInfo = {
                 icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`,
                 temp: Math.floor(data.main.temp),
                 name: data.name.toUpperCase(),
                 humidity: data.main.humidity,
                 windSpeed: data.wind.speed,
                 status: data.weather[0].description,
-            });
+                lat: data.coord.lat,
+                lon: data.coord.lon
+            };
 
-            Swal.fire({
-                icon: 'success',
-                title: `Weather Found for ${data.name} 🌤️`,
-                text: 'Here is the latest weather data.',
-                confirmButtonColor: '#3085d6'
-            });
-            getCityImage(cityName);
-
+            setWeatherData(weatherInfo);
+            getTime(weatherInfo.lat, weatherInfo.lon);
+            getCityImages(cityName);
         } catch (error) {
             Swal.fire({
                 icon: 'error',
@@ -56,22 +57,46 @@ const WeatherCard = () => {
         }
     };
 
-    const getCityImage = async (cityName) => {
+    const getTime = async (lat, lon) => {
         try {
-            const unsplashKey = 'ZRR-LfUSTmDT4cH2MKy3en9EsS0mo9c3qWMu1FQfHjM'; // Replace with your Unsplash Access Key
+            const apiKey = 'GCLYMOG371FG';
+            const url = `http://api.timezonedb.com/v2.1/get-time-zone?key=${apiKey}&format=json&by=position&lat=${lat}&lng=${lon}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.status === "OK") {
+                updateTime(data.formatted);
+            }
+        } catch (error) {
+            console.error("Error fetching time:", error);
+        }
+    };
+
+    const updateTime = (initialTime) => {
+        let currentTime = new Date(initialTime);
+
+        setInterval(() => {
+            currentTime.setSeconds(currentTime.getSeconds() + 1);
+            setTime(currentTime.toLocaleTimeString());
+        }, 1000);
+    };
+
+    const getCityImages = async (cityName) => {
+        try {
+            const unsplashKey = 'ZRR-LfUSTmDT4cH2MKy3en9EsS0mo9c3qWMu1FQfHjM';
             const response = await fetch(
-                `https://api.unsplash.com/search/photos?query=${cityName}&client_id=${unsplashKey}&per_page=1`
+                `https://api.unsplash.com/search/photos?query=${cityName}&client_id=${unsplashKey}&per_page=5`
             );
             const data = await response.json();
 
             if (data.results.length > 0) {
-                setCityImage(data.results[0].urls.regular);
+                setCityImages(data.results.map(img => img.urls.regular));
             } else {
-                setCityImage('');
+                setCityImages([]);
             }
         } catch (error) {
-            console.error('Error fetching image:', error);
-            setCityImage('');
+            console.error('Error fetching images:', error);
+            setCityImages([]);
         }
     };
 
@@ -99,65 +124,63 @@ const WeatherCard = () => {
         }
     };
 
+    const sliderSettings = {
+        dots: false,
+        infinite: true,
+        speed: 500,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        autoplay: true,
+        autoplaySpeed: 5000
+    };
+
     return (
-        <div
-        style={{
-            backgroundImage: cityImage ? `url(${cityImage})` : 'rgb(238,174,202)', backgroundSize:'cover', backgroundPosition:'center'
-        }}
-        >
-        <Row justify="end" style={{ minHeight: "100vh", padding: "20px" }}>
-            <Col xs={24} sm={18} md={12} lg={10} xl={8}>
-                <AntCard bordered style={{ textAlign: 'center', boxShadow: "0px 4px 8px rgb(207, 112, 112)", background:'linear-gradient(0deg, rgba(34,193,195,1) 0%, rgba(253,187,45,1) 100%)'}}>
-                    <h3 style={{ marginBottom: 20, color:'white' }}>Search Weather</h3>
+        <div className="weather-container">
+            {/* Background Carousel */}
+            {cityImages.length > 0 && (
+                <Slider {...sliderSettings} className="background-slider">
+                    {cityImages.map((image, index) => (
+                        <div key={index}>
+                            <img src={image} alt="city background" className="background-image" />
+                        </div>
+                    ))}
+                </Slider>
+            )}
+
+            {/* Cards Container */}
+            <div className="cards-container">
+                {/* Weather Card */}
+                {weatherData && (
+                    <div className="weather-card">
+                        <img src={weatherData.icon} alt="weather_icon" className="weather-icon" />
+                        <p>{weatherData.status}</p>
+                        <h2>{weatherData.temp}°C</h2>
+                        <h4>{weatherData.name}</h4>
+                        <h4>🕒 {time}</h4>
+
+                        <Row gutter={16} justify="center">
+                            <Col><img src={humidity_icon} alt="humidity" className="info-icon" /> {weatherData.humidity}%</Col>
+                            <Col><img src={wind_icon} alt="wind" className="info-icon" /> {weatherData.windSpeed} km/h</Col>
+                        </Row>
+                    </div>
+                )}
+
+                {/* Search Card */}
+                <div className="search-card">
+                    <h3>Search Weather</h3>
                     <Input.Group compact>
-                        <Input 
-                            placeholder="City Name" 
-                            value={input} 
-                            onChange={handleChange} 
-                            style={{ width: "75%" }} 
+                        <Input
+                            placeholder="City Name"
+                            value={input}
+                            onChange={handleChange}
+                            style={{ width: "75%" }}
                         />
                         <Tooltip title="Search">
                             <Button type="primary" onClick={handleSubmit}>Search</Button>
                         </Tooltip>
                     </Input.Group>
-
-                    {weatherData ? (
-                        <>
-                            <div style={{ marginTop: 20 }}>
-                                <img src={weatherData.icon} alt="weather_icon" style={{ width: 80 }} />
-                                <p style={{ textTransform: "capitalize", fontWeight:'bold', color:'white'}}>{weatherData.status}</p>
-                                <h2 style={{color:'white'}}>{weatherData.temp}°C</h2>
-                                <h4 style={{color:'white'}}>{weatherData.name}</h4>
-                            </div>
-
-                            <div style={{ marginTop: 20 }}>
-                                <Row gutter={[16, 16]} justify="center" align="middle">
-                                    {/* Humidity Section */}
-                                    <Col xs={24} sm={12} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <img src={humidity_icon} alt="humidity" style={{ width: 40, marginRight: 10 }} />
-                                        <div style={{ textAlign: "left" }}>
-                                            <p style={{ margin: 0, fontSize: "16px", fontWeight: "bold", color: "white" }}>{weatherData.humidity}%</p>
-                                            <p style={{ margin: 0, fontSize: "14px", color: "white" }}>Humidity</p>
-                                        </div>
-                                    </Col>
-
-                                    {/* Wind Speed Section */}
-                                    <Col xs={24} sm={12} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <img src={wind_icon} alt="wind speed" style={{ width: 40, marginRight: 10 }} />
-                                        <div style={{ textAlign: "left" }}>
-                                            <p style={{ margin: 0, fontSize: "16px", fontWeight: "bold", color: "white" }}>{weatherData.windSpeed} km/h</p>
-                                            <p style={{ margin: 0, fontSize: "14px", color: "white" }}>Wind Speed</p>
-                                        </div>
-                                    </Col>
-                                </Row>
-                            </div>
-                        </>
-                    ) : (
-                        <p style={{ marginTop: 20}}>Please Enter A City Name</p>
-                    )}
-                </AntCard>
-            </Col>
-        </Row>
+                </div>
+            </div>
         </div>
     );
 };
